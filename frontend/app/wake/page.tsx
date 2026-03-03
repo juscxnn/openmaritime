@@ -142,7 +142,7 @@ export default function WakePage() {
   useEffect(() => {
     async function fetchFixtures() {
       try {
-        const res = await fetch("http://localhost:8002/api/v1/fixtures");
+        const res = await fetch("http://localhost:8000/api/v1/fixtures");
         if (res.ok) {
           const data = await res.json();
           setFixtures(data);
