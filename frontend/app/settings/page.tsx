@@ -20,6 +20,11 @@ import {
   Plug,
   CheckCircle,
   XCircle,
+  Users,
+  FileText,
+  Search,
+  Filter,
+  Download,
 } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/Button";
@@ -29,6 +34,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Modal } from "@/components/ui/Modal";
 import { Toggle } from "@/components/ui/Toggle";
 import { Spinner } from "@/components/ui/Spinner";
+import { Select } from "@/components/ui/Select";
 import { useAppStore } from "@/lib/store";
 
 interface UserProfile {
@@ -348,6 +354,8 @@ export default function SettingsPage() {
     { id: "api-keys", label: "API Keys", icon: Key },
     { id: "email", label: "Email Sync", icon: Mail },
     { id: "sso", label: "SSO", icon: Shield },
+    { id: "team", label: "Team", icon: Users },
+    { id: "audit", label: "Audit Log", icon: FileText },
     { id: "costs", label: "Cost Tracking", icon: DollarSign },
   ];
 
@@ -650,6 +658,142 @@ export default function SettingsPage() {
                       <ExternalLink className="w-4 h-4 mr-1" />
                       Learn about SSO
                     </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === "team" && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Team Members</CardTitle>
+                      <CardDescription>
+                        Manage your team and their permissions
+                      </CardDescription>
+                    </div>
+                    <Button size="sm">
+                      <Plus className="w-4 h-4 mr-1" />
+                      Invite Member
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                          <User className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">Demo User</div>
+                          <div className="text-sm text-gray-500">demo@openmaritime.io</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge variant="success">Admin</Badge>
+                        <Button variant="ghost" size="sm">
+                          Edit
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === "audit" && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Audit Log</CardTitle>
+                      <CardDescription>
+                        Track all actions and changes in your account
+                      </CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm">
+                      <Download className="w-4 h-4 mr-1" />
+                      Export
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4 flex gap-2">
+                    <div className="relative flex-1">
+                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search audit logs..."
+                        className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-300 text-sm"
+                      />
+                    </div>
+                    <Select
+                      options={[
+                        { value: "all", label: "All Actions" },
+                        { value: "fixture.create", label: "Fixture Created" },
+                        { value: "fixture.update", label: "Fixture Updated" },
+                        { value: "auth.login", label: "Login" },
+                        { value: "plugin.call", label: "Plugin Call" },
+                      ]}
+                      value="all"
+                      onChange={() => {}}
+                      className="w-40"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="p-3 border border-gray-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                            <Check className="w-4 h-4 text-green-600" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">Fixture created</div>
+                            <div className="text-sm text-gray-500">MT Pacific Grace - Singapore to Chiba</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm text-gray-500">Demo User</div>
+                          <div className="text-xs text-gray-400">2 hours ago</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-3 border border-gray-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <User className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">User login</div>
+                            <div className="text-sm text-gray-500">demo@openmaritime.io</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm text-gray-500">Demo User</div>
+                          <div className="text-xs text-gray-400">5 hours ago</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-3 border border-gray-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                            <Plug className="w-4 h-4 text-purple-600" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">RightShip enrichment</div>
+                            <div className="text-sm text-gray-500">IMO: 9753161</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm text-gray-500">System</div>
+                          <div className="text-xs text-gray-400">1 day ago</div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
