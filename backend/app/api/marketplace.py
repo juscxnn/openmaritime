@@ -48,7 +48,7 @@ SEED_PLUGINS = [
     PluginInfo(
         name="veson",
         display_name="Veson IMOS",
-        description="Bi-directional voyage sync with IMOS",
+        description="Bi-directional voyage sync with IMOS - create, retrieve, update voyages",
         category="Voyage Management",
         icon="ship",
         api_key_required=True,
@@ -59,7 +59,7 @@ SEED_PLUGINS = [
     PluginInfo(
         name="signalocean",
         display_name="Signal Ocean",
-        description="Market data, voyages, and vessel positions",
+        description="Market data, voyages, vessel positions, freight rates, and port congestion",
         category="Market Data",
         icon="trending-up",
         api_key_required=True,
@@ -70,7 +70,7 @@ SEED_PLUGINS = [
     PluginInfo(
         name="idwal",
         display_name="Idwal",
-        description="Vessel grading and technical assessment (0-100)",
+        description="Vessel grading (0-100), technical assessment, vetting, and inspection history",
         category="Vessel Data",
         icon="award",
         api_key_required=True,
@@ -81,7 +81,7 @@ SEED_PLUGINS = [
     PluginInfo(
         name="zeronorth",
         display_name="ZeroNorth",
-        description="Bunker optimization and voyage planning",
+        description="Bunker optimization, voyage planning, CO2 emissions, CII calculations",
         category="Operations",
         icon="anchor",
         api_key_required=True,

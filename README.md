@@ -262,4 +262,3 @@ See `docs/` for detailed API specs and architecture decisions.
 
 - **Discord**: [Join our community](https://discord.gg/openmaritime)
 - **Issues**: [GitHub Issues](https://github.com/juscxnn/openmaritime/issues)
-- **Email**: hello@openmaritime.io

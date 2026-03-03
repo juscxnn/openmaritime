@@ -1,0 +1,56 @@
+# OpenMaritime Prometheus Configuration
+# Production-ready scrape configuration for OpenMaritime metrics
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'openmaritime'
+    environment: 'production'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files: []
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # OpenMaritime Backend API
+  - job_name: 'openmaritime-backend'
+    scrape_interval: 10s
+    metrics_path: '/api/v1/metrics'
+    static_configs:
+      - targets: ['backend:8000']
+    labels:
+      service: 'backend'
+      component: 'api'
+
+  # OpenMaritime Celery Workers
+  - job_name: 'openmaritime-celery'
+    scrape_interval: 30s
+    metrics_path: '/api/v1/metrics'
+    static_configs:
+      - targets: ['celery:8000']
+    labels:
+      service: 'celery'
+      component: 'worker'
+
+  # Node Exporter for system metrics (optional)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    labels:
+      service: 'system'
+
+  # Redis metrics (optional)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    labels:
+      service: 'redis'

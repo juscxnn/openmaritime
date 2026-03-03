@@ -1,0 +1,16 @@
+# Grafana Dashboard Provisioning Configuration
+# This configuration automatically loads dashboards from the dashboards directory
+
+apiVersion: 1
+
+providers:
+  - name: 'OpenMaritime Dashboards'
+    orgId: 1
+    folder: 'OpenMaritime'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: true
