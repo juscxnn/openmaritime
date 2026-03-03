@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
-from app.api import fixtures, plugins, enrichments, auth
+from app.api import fixtures, plugins, enrichments, auth, marketplace
 from app.models import Base
 from app.services.plugin_manager import PluginManager
 
@@ -50,6 +50,7 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(fixtures.router, prefix="/api/v1/fixtures", tags=["fixtures"])
 app.include_router(plugins.router, prefix="/api/v1/plugins", tags=["plugins"])
 app.include_router(enrichments.router, prefix="/api/v1/enrichments", tags=["enrichments"])
+app.include_router(marketplace.router, prefix="/api/v1/marketplace", tags=["marketplace"])
 
 
 @app.get("/api/v1/health")
