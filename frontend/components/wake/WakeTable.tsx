@@ -1,17 +1,40 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   createColumnHelper,
   flexRender,
   getCoreRowModel,
   useReactTable,
   SortingState,
+  ColumnFiltersState,
+  getFilteredRowModel,
 } from "@tanstack/react-table";
+import {
+  Search,
+  Filter,
+  ArrowUpDown,
+  Anchor,
+  Bot,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  Keyboard,
+  Sparkles,
+  Waves,
+  RefreshCw,
+  Download,
+} from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Badge";
+import { FixNowModal } from "./FixNowModal";
+import { FixtureCard } from "./FixtureCard";
 
 interface Fixture {
   id: string;
   vessel_name: string;
+  vessel_type: string;
   imo_number: string | null;
   cargo_type: string;
   cargo_quantity: number;
@@ -24,7 +47,7 @@ interface Fixture {
   port_loading: string;
   port_discharge: string;
   charterer: string | null;
-  broker: string | null;
+  owner: string | null;
   status: string;
   wake_score: number | null;
   tce_estimate: number | null;
@@ -176,11 +199,16 @@ const columns = [
   }),
   columnHelper.display({
     id: "actions",
-    header: "Actions",
-    cell: (info) => (
-      <button className="bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-medium hover:bg-blue-700 transition-colors">
+    header: "",
+    cell: ({ row }) => (
+      <Button
+        size="sm"
+        className="bg-blue-600 hover:bg-blue-700 text-white"
+        onClick={() => handleFixNow(row.original)}
+      >
+        <Anchor className="w-3 h-3 mr-1" />
         FIX NOW
-      </button>
+      </Button>
     ),
   }),
 ];
@@ -188,10 +216,36 @@ const columns = [
 export function WakeTable() {
   const [data, setData] = useState<Fixture[]>(getMockFixtures());
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [globalFilter, setGlobalFilter] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selectedFixture, setSelectedFixture] = useState<Fixture | null>(null);
+  const [fixNowFixture, setFixNowFixture] = useState<Fixture | null>(null);
+  const [showFixtureCard, setShowFixtureCard] = useState(false);
+  const [quickFilter, setQuickFilter] = useState<string>("all");
+  const [isLive, setIsLive] = useState(true);
+
+  const handleFixNow = useCallback((fixture: Fixture) => {
+    setFixNowFixture(fixture);
+  }, []);
+
+  const handleRowClick = useCallback((fixture: Fixture) => {
+    setSelectedFixture(fixture);
+    setShowFixtureCard(true);
+  }, []);
+
+  const handleConfirmFix = useCallback(async (fixData: any) => {
+    console.log("Confirming fix:", fixData);
+    setData((prev) =>
+      prev.map((f) =>
+        f.id === fixData.fixture_id ? { ...f, status: "negotiating" } : f
+      )
+    );
+  }, []);
 
   useEffect(() => {
     async function fetchFixtures() {
+      setLoading(true);
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
         const res = await fetch(`${apiUrl}/api/v1/fixtures`);
@@ -203,79 +257,283 @@ export function WakeTable() {
         }
       } catch (err) {
         console.log("Using mock fixture data");
+      } finally {
+        setLoading(false);
       }
     }
     fetchFixtures();
-  }, []);
+
+    const interval = setInterval(() => {
+      if (isLive) {
+        fetchFixtures();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [isLive]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "/" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        document.getElementById("search-input")?.focus();
+      }
+      if (e.key === "f" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (selectedFixture) {
+          setFixNowFixture(selectedFixture);
+        }
+      }
+      if (e.key === "Escape") {
+        setShowFixtureCard(false);
+        setFixNowFixture(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedFixture]);
+
+  const filteredData = useMemo(() => {
+    let result = data;
+    
+    if (quickFilter === "urgent") {
+      result = result.filter((f) => {
+        const daysLeft = Math.ceil(
+          (new Date(f.laycan_start).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+        );
+        return daysLeft <= 5;
+      });
+    } else if (quickFilter === "high-score") {
+      result = result.filter((f) => f.wake_score !== null && f.wake_score >= 80);
+    } else if (quickFilter === "negotiating") {
+      result = result.filter((f) => f.status === "negotiating");
+    } else if (quickFilter === "confirmed") {
+      result = result.filter((f) => f.status === "confirmed");
+    }
+    
+    return result;
+  }, [data, quickFilter]);
 
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
-    state: { sorting },
+    state: { sorting, columnFilters, globalFilter },
     onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
   });
 
-  if (loading) {
+  const stats = useMemo(() => {
+    const total = data.length;
+    const avgScore = data.filter((f) => f.wake_score).reduce((a, b) => a + (b.wake_score || 0), 0) / data.filter((f) => f.wake_score).length || 0;
+    const highScore = Math.max(...data.filter((f) => f.wake_score).map((f) => f.wake_score || 0), 0);
+    return { total, avgScore, highScore };
+  }, [data]);
+
+  if (loading && data.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-8 text-center">
-        <div className="text-gray-500">Loading fixtures...</div>
+        <Loader2 className="w-8 h-8 mx-auto animate-spin text-blue-600" />
+        <div className="text-gray-500 mt-4">Loading fixtures...</div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      {loading ? (
-        <div className="p-12 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    <>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        {/* Quick Filters */}
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant={quickFilter === "all" ? "default" : "ghost"}
+                onClick={() => setQuickFilter("all")}
+              >
+                All
+              </Button>
+              <Button
+                size="sm"
+                variant={quickFilter === "urgent" ? "default" : "ghost"}
+                onClick={() => setQuickFilter("urgent")}
+                className={quickFilter === "urgent" ? "" : "text-orange-600"}
+              >
+                <ChevronDown className="w-3 h-3 mr-1" />
+                Urgent
+              </Button>
+              <Button
+                size="sm"
+                variant={quickFilter === "high-score" ? "default" : "ghost"}
+                onClick={() => setQuickFilter("high-score")}
+                className={quickFilter === "high-score" ? "" : "text-green-600"}
+              >
+                <Bot className="w-3 h-3 mr-1" />
+                High Score
+              </Button>
+              <Button
+                size="sm"
+                variant={quickFilter === "negotiating" ? "default" : "ghost"}
+                onClick={() => setQuickFilter("negotiating")}
+              >
+                Negotiating
+              </Button>
+              <Button
+                size="sm"
+                variant={quickFilter === "confirmed" ? "default" : "ghost"}
+                onClick={() => setQuickFilter("confirmed")}
+              >
+                Confirmed
+              </Button>
+            </div>
+            <div className="flex items-center gap-3">
+              {isLive && (
+                <div className="flex items-center gap-2 text-sm text-green-600">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                  Live
+                </div>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsLive(!isLive)}
+              >
+                <RefreshCw className={`w-4 h-4 ${isLive ? "animate-spin" : ""}`} />
+              </Button>
+              <Button size="sm" variant="ghost">
+                <Download className="w-4 h-4" />
+              </Button>
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  id="search-input"
+                  type="text"
+                  placeholder="Search fixtures... (/)"
+                  value={globalFilter}
+                  onChange={(e) => setGlobalFilter(e.target.value)}
+                  className="pl-9 pr-4 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+          </div>
         </div>
-      ) : (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={header.column.getToggleSortingHandler()}
-                  >
-                    <div className="flex items-center gap-1">
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {header.column.getIsSorted() && (
-                        <span>{header.column.getIsSorted() === "asc" ? "↑" : "↓"}</span>
-                      )}
-                    </div>
-                  </th>
+
+        {/* Stats Bar */}
+        <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-6 text-sm">
+            <span className="text-gray-600 dark:text-gray-400">
+              <span className="font-semibold text-gray-900 dark:text-white">{stats.total}</span> fixtures
+            </span>
+            <span className="text-gray-600 dark:text-gray-400">
+              Avg: <span className="font-semibold text-gray-900 dark:text-white">{stats.avgScore.toFixed(0)}</span>%
+            </span>
+            <span className="text-gray-600 dark:text-gray-400">
+              Top: <span className="font-semibold text-green-600">{stats.highScore.toFixed(0)}</span>%
+            </span>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="p-12 flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-900/50">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        <div className="flex items-center gap-1">
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          {header.column.getIsSorted() && (
+                            <span>
+                              {header.column.getIsSorted() === "asc" ? (
+                                <ChevronUp className="w-3 h-3" />
+                              ) : (
+                                <ChevronDown className="w-3 h-3" />
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
                 ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {table.getRowModel().rows.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length} className="px-4 py-8 text-center text-gray-500">
-                  No fixtures found. Add fixtures via API or email sync.
-                </td>
-              </tr>
-            ) : (
-              table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50">
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3 whitespace-nowrap">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {table.getRowModel().rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={columns.length} className="px-4 py-12 text-center text-gray-500">
+                      <Waves className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-lg font-medium">No fixtures found</p>
+                      <p className="text-sm mt-1">Connect email or add fixtures via API</p>
                     </td>
-                  ))}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </tr>
+                ) : (
+                  table.getRowModel().rows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
+                      onClick={() => handleRowClick(row.original)}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="px-4 py-3 whitespace-nowrap">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+          <div className="flex items-center justify-between text-sm text-gray-500">
+            <div className="flex items-center gap-2">
+              <Keyboard className="w-4 h-4" />
+              <span>Press <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">/</kbd> to search, <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">f</kbd> to fix</span>
+            </div>
+            <span>
+              Showing {table.getRowModel().rows.length} of {data.length} fixtures
+            </span>
+          </div>
         </div>
-      )}
-    </div>
+      </div>
+
+      {/* FIX NOW Modal */}
+      <FixNowModal
+        fixture={fixNowFixture}
+        isOpen={!!fixNowFixture}
+        onClose={() => setFixNowFixture(null)}
+        onConfirm={handleConfirmFix}
+      />
+
+      {/* Fixture Card Sidebar */}
+      <FixtureCard
+        fixture={selectedFixture}
+        isOpen={showFixtureCard}
+        onClose={() => setShowFixtureCard(false)}
+        onFixNow={() => {
+          if (selectedFixture) {
+            setShowFixtureCard(false);
+            setFixNowFixture(selectedFixture);
+          }
+        }}
+        onOpenVoice={() => {}}
+      />
+    </>
   );
 }
 
