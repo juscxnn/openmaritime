@@ -17,6 +17,9 @@ import {
   DollarSign,
   Activity,
   RefreshCw,
+  Plug,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/Button";
@@ -56,6 +59,17 @@ interface CostData {
   period_start: string;
 }
 
+interface Integration {
+  plugin_name: string;
+  display_name: string;
+  description: string;
+  category: string;
+  icon: string;
+  api_key_required: boolean;
+  is_enabled: boolean;
+  api_key_configured: boolean;
+}
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("profile");
   const [loading, setLoading] = useState(false);
@@ -74,6 +88,12 @@ export default function SettingsPage() {
     period_start: new Date().toISOString(),
   });
   
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
+  const [integrationApiKey, setIntegrationApiKey] = useState("");
+  const [showIntegrationModal, setShowIntegrationModal] = useState(false);
+  const [savingIntegration, setSavingIntegration] = useState(false);
+  
   const [newApiKeyName, setNewApiKeyName] = useState("");
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [newApiKey, setNewApiKey] = useState<string | null>(null);
@@ -86,6 +106,7 @@ export default function SettingsPage() {
     fetchApiKeys();
     fetchEmailConfig();
     fetchCostData();
+    fetchIntegrations();
   }, []);
 
   async function fetchUserProfile() {
@@ -165,6 +186,122 @@ export default function SettingsPage() {
     }
   }
 
+  async function fetchIntegrations() {
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/marketplace/user/configs");
+      if (res.ok) {
+        const data = await res.json();
+        setIntegrations(data);
+      } else {
+        setIntegrations(MOCK_INTEGRATIONS);
+      }
+    } catch (err) {
+      setIntegrations(MOCK_INTEGRATIONS);
+    }
+  }
+
+  async function saveIntegrationConfig(integration: Integration, apiKey: string, enabled: boolean) {
+    setSavingIntegration(true);
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/marketplace/${integration.plugin_name}/config`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: apiKey, is_enabled: enabled }),
+      });
+      if (res.ok) {
+        await fetchIntegrations();
+        setShowIntegrationModal(false);
+        setIntegrationApiKey("");
+      }
+    } catch (err) {
+      console.error("Failed to save integration config:", err);
+    }
+    setSavingIntegration(false);
+  }
+
+  const MOCK_INTEGRATIONS = [
+    {
+      plugin_name: "rightship",
+      display_name: "RightShip",
+      description: "Safety scores, GHG ratings, and inspection data for vessels",
+      category: "Vessel Data",
+      icon: "shield",
+      api_key_required: true,
+      is_enabled: false,
+      api_key_configured: false,
+    },
+    {
+      plugin_name: "marinetraffic",
+      display_name: "MarineTraffic",
+      description: "AIS positions, ETA, and vessel tracking",
+      category: "AIS & Position",
+      icon: "map-pin",
+      api_key_required: true,
+      is_enabled: false,
+      api_key_configured: false,
+    },
+    {
+      plugin_name: "signalocean",
+      display_name: "Signal Ocean",
+      description: "Market data, voyages, vessel positions, freight rates",
+      category: "Market Data",
+      icon: "trending-up",
+      api_key_required: true,
+      is_enabled: false,
+      api_key_configured: false,
+    },
+    {
+      plugin_name: "veson",
+      display_name: "Veson IMOS",
+      description: "Bi-directional voyage sync with IMOS",
+      category: "Voyage Management",
+      icon: "ship",
+      api_key_required: true,
+      is_enabled: false,
+      api_key_configured: false,
+    },
+    {
+      plugin_name: "idwal",
+      display_name: "Idwal",
+      description: "Vessel grading (0-100), technical assessment",
+      category: "Vessel Data",
+      icon: "award",
+      api_key_required: true,
+      is_enabled: false,
+      api_key_configured: false,
+    },
+    {
+      plugin_name: "zeronorth",
+      display_name: "ZeroNorth",
+      description: "Bunker optimization, voyage planning, CO2 emissions",
+      category: "Operations",
+      icon: "anchor",
+      api_key_required: true,
+      is_enabled: false,
+      api_key_configured: false,
+    },
+    {
+      plugin_name: "whisper",
+      display_name: "Whisper Voice",
+      description: "Local voice-to-fixture transcription using Whisper",
+      category: "AI/ML",
+      icon: "mic",
+      api_key_required: false,
+      is_enabled: true,
+      api_key_configured: true,
+    },
+    {
+      plugin_name: "laytime",
+      display_name: "Laytime Engine",
+      description: "Built-in NOR, SOF, and demurrage calculation",
+      category: "Calculations",
+      icon: "calculator",
+      api_key_required: false,
+      is_enabled: true,
+      api_key_configured: true,
+    },
+  ];
+
   async function handleCreateApiKey() {
     if (!newApiKeyName) return;
     
@@ -207,6 +344,7 @@ export default function SettingsPage() {
 
   const tabs = [
     { id: "profile", label: "Profile", icon: User },
+    { id: "integrations", label: "Integrations", icon: Plug },
     { id: "api-keys", label: "API Keys", icon: Key },
     { id: "email", label: "Email Sync", icon: Mail },
     { id: "sso", label: "SSO", icon: Shield },
@@ -288,6 +426,71 @@ export default function SettingsPage() {
 
                   <div className="flex justify-end">
                     <Button>Save Changes</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === "integrations" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Integrations</CardTitle>
+                  <CardDescription>
+                    Connect external services and API providers
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {integrations.map((integration) => (
+                      <div
+                        key={integration.plugin_name}
+                        className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                            <Plug className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">
+                              {integration.display_name}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {integration.description}
+                            </div>
+                            <div className="text-xs text-gray-400 mt-1">
+                              {integration.category}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {integration.api_key_required ? (
+                            integration.api_key_configured ? (
+                              <Badge variant="success">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Connected
+                              </Badge>
+                            ) : (
+                              <Badge variant="warning">
+                                <XCircle className="w-3 h-3 mr-1" />
+                                API Key Required
+                              </Badge>
+                            )
+                          ) : (
+                            <Badge variant="success">Built-in</Badge>
+                          )}
+                          <Button
+                            variant={integration.api_key_configured ? "outline" : "primary"}
+                            size="sm"
+                            onClick={() => {
+                              setSelectedIntegration(integration);
+                              setShowIntegrationModal(true);
+                            }}
+                          >
+                            {integration.api_key_configured ? "Configure" : "Set Up"}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
@@ -634,6 +837,80 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+        </Modal>
+
+        {/* Integration Config Modal */}
+        <Modal
+          isOpen={showIntegrationModal}
+          onClose={() => {
+            setShowIntegrationModal(false);
+            setSelectedIntegration(null);
+            setIntegrationApiKey("");
+          }}
+          title={`Configure ${selectedIntegration?.display_name || "Integration"}`}
+          size="md"
+        >
+          <div className="space-y-4">
+            {selectedIntegration && (
+              <>
+                <p className="text-sm text-gray-600">
+                  {selectedIntegration.description}
+                </p>
+                
+                {selectedIntegration.api_key_required && (
+                  <Input
+                    label="API Key"
+                    type="password"
+                    placeholder="Enter your API key"
+                    value={integrationApiKey}
+                    onChange={(e) => setIntegrationApiKey(e.target.value)}
+                  />
+                )}
+
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm font-medium text-gray-700">Enable Integration</span>
+                  <Toggle
+                    checked={selectedIntegration.is_enabled}
+                    onChange={() => {
+                      if (selectedIntegration) {
+                        setSelectedIntegration({
+                          ...selectedIntegration,
+                          is_enabled: !selectedIntegration.is_enabled,
+                        });
+                      }
+                    }}
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowIntegrationModal(false);
+                      setSelectedIntegration(null);
+                      setIntegrationApiKey("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (selectedIntegration) {
+                        saveIntegrationConfig(
+                          selectedIntegration,
+                          integrationApiKey,
+                          selectedIntegration.is_enabled
+                        );
+                      }
+                    }}
+                    disabled={selectedIntegration.api_key_required && !integrationApiKey}
+                  >
+                    {savingIntegration ? "Saving..." : "Save Configuration"}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
         </Modal>
       </div>
     </Navbar>

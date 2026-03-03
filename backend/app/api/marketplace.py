@@ -1,10 +1,15 @@
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from uuid import UUID
+from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.db import async_session_maker
 from app.models import PluginConfig
+from app.models import User
+from app.api.deps import get_current_user
 
 
 router = APIRouter()
@@ -165,37 +170,113 @@ async def get_plugin(plugin_name: str):
 @router.get("/{plugin_name}/config")
 async def get_plugin_config(
     plugin_name: str,
-    user_id: str = None,
-    db: AsyncSession = Depends(lambda: None),
+    db: AsyncSession = Depends(async_session_maker),
+    current_user: User = Depends(get_current_user),
 ):
     """Get user configuration for a plugin"""
+    result = await db.execute(
+        select(PluginConfig).where(
+            PluginConfig.plugin_name == plugin_name,
+            PluginConfig.user_id == current_user.id,
+        )
+    )
+    config = result.scalar_one_or_none()
+    
+    plugin_info = next((p for p in SEED_PLUGINS if p.name == plugin_name), None)
+    if not plugin_info:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    
     return {
         "plugin_name": plugin_name,
-        "is_enabled": True,
-        "api_key_configured": False,
+        "is_enabled": config.is_enabled if config else False,
+        "api_key_configured": bool(config and config.config.get("api_key")),
+        "config": {
+            "api_key": "***" if config and config.config.get("api_key") else None,
+        } if config else None,
     }
+
+
+class PluginConfigRequest(BaseModel):
+    api_key: Optional[str] = None
+    is_enabled: bool = True
+    config: Optional[Dict[str, Any]] = None
 
 
 @router.post("/{plugin_name}/config")
 async def configure_plugin(
     plugin_name: str,
-    api_key: str,
-    user_id: str = None,
-    db: AsyncSession = Depends(lambda: None),
+    request: PluginConfigRequest,
+    db: AsyncSession = Depends(async_session_maker),
+    current_user: User = Depends(get_current_user),
 ):
     """Configure plugin for user"""
-    for plugin in SEED_PLUGINS:
-        if plugin.name == plugin_name:
-            if not plugin.api_key_required:
-                return {"status": "success", "message": "No API key required"}
-            
-            return {
-                "status": "success",
-                "message": f"API key configured for {plugin.display_name}",
-                "plugin": plugin_name,
-            }
+    plugin_info = next((p for p in SEED_PLUGINS if p.name == plugin_name), None)
+    if not plugin_info:
+        raise HTTPException(status_code=404, detail="Plugin not found")
     
-    raise HTTPException(status_code=404, detail="Plugin not found")
+    if plugin_info.api_key_required and not request.api_key:
+        raise HTTPException(status_code=400, detail="API key is required")
+    
+    result = await db.execute(
+        select(PluginConfig).where(
+            PluginConfig.plugin_name == plugin_name,
+            PluginConfig.user_id == current_user.id,
+        )
+    )
+    config = result.scalar_one_or_none()
+    
+    config_data = request.config or {}
+    if request.api_key:
+        config_data["api_key"] = request.api_key
+    
+    if config:
+        config.is_enabled = request.is_enabled
+        config.config = config_data
+    else:
+        config = PluginConfig(
+            user_id=current_user.id,
+            plugin_name=plugin_name,
+            config=config_data,
+            is_enabled=request.is_enabled,
+        )
+        db.add(config)
+    
+    await db.commit()
+    
+    return {
+        "status": "success",
+        "message": f"API key configured for {plugin_info.display_name}",
+        "plugin": plugin_name,
+        "is_enabled": request.is_enabled,
+    }
+
+
+@router.get("/user/configs")
+async def get_user_configs(
+    db: AsyncSession = Depends(async_session_maker),
+    current_user: User = Depends(get_current_user),
+):
+    """Get all plugin configs for current user"""
+    result = await db.execute(
+        select(PluginConfig).where(PluginConfig.user_id == current_user.id)
+    )
+    configs = result.scalars().all()
+    
+    config_map = {c.plugin_name: c for c in configs}
+    
+    return [
+        {
+            "plugin_name": p.name,
+            "display_name": p.display_name,
+            "description": p.description,
+            "category": p.category,
+            "icon": p.icon,
+            "api_key_required": p.api_key_required,
+            "is_enabled": config_map.get(p.name, PluginConfig(plugin_name=p.name, config={})).is_enabled if p.name in config_map else False,
+            "api_key_configured": bool(config_map.get(p.name, PluginConfig(plugin_name=p.name, config={})).config.get("api_key")) if p.name in config_map else False,
+        }
+        for p in SEED_PLUGINS
+    ]
 
 
 @router.get("/categories")
