@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.main import async_session_maker
+from app.db import async_session_maker
 from app.models import PluginConfig
 
 

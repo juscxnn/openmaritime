@@ -10,11 +10,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import AuditLog
-from app.main import async_session_maker
+from app.models import AuditLog, User
+from app.api.deps import get_db
 from app.services.audit_service import audit_service
 from app.api.auth import get_current_user
-from app.models import User
 
 
 router = APIRouter(prefix="/api/v1/audit", tags=["audit"])
@@ -46,11 +45,6 @@ class AuditLogQuery(BaseModel):
     status: Optional[str] = None
     limit: int = 100
     offset: int = 0
-
-
-async def get_db():
-    async with async_session_maker() as session:
-        yield session
 
 
 @router.get("/", response_model=List[AuditLogResponse])

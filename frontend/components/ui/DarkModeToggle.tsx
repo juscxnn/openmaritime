@@ -1,8 +1,3 @@
-"""
-Dark Mode Toggle Component.
-
-Provides dark/light theme switching with system preference detection.
-"""
 "use client";
 
 import { useState, useEffect } from "react";

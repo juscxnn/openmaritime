@@ -29,7 +29,7 @@ celery_app.conf.update(
 def sync_emails(self, user_id: str):
     """Sync emails and extract fixtures"""
     from app.services.email_sync import email_sync_service
-    from app.main import async_session_maker
+    from app.db import async_session_maker
     
     async def _run():
         async with async_session_maker() as session:
@@ -56,7 +56,7 @@ def extract_fixture(self, email_data: dict):
 def enrich_fixture(self, fixture_id: str):
     """Enrich fixture with all plugins"""
     from app.services.plugin_manager import plugin_manager
-    from app.main import async_session_maker
+    from app.db import async_session_maker
     from sqlalchemy import select
     from app.models import Fixture
     
@@ -80,7 +80,7 @@ def enrich_fixture(self, fixture_id: str):
 def rank_fixture(self, fixture_id: str):
     """Rank fixture using Wake AI"""
     from app.services.wake_ai import wake_ai_service
-    from app.main import async_session_maker
+    from app.db import async_session_maker
     from sqlalchemy import select
     from app.models import Fixture
     
@@ -130,7 +130,7 @@ def broadcast_update(self, event_type: str, data: dict):
 def kafka_ingest(self, fixture_data: dict):
     """Ingest fixture from Kafka stream"""
     from app.workers.tasks import process_fixture_pipeline
-    from app.main import async_session_maker
+    from app.db import async_session_maker
     from app.models import Fixture
     from datetime import datetime
     

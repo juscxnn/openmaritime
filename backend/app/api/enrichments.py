@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models import Enrichment, Fixture
-from app.main import async_session_maker
+from app.api.deps import get_db
 
 
 router = APIRouter()
@@ -19,11 +19,6 @@ class EnrichmentResponse(BaseModel):
     source: str
     data: dict
     fetched_at: str
-
-
-async def get_db():
-    async with async_session_maker() as session:
-        yield session
 
 
 @router.get("/fixture/{fixture_id}", response_model=List[EnrichmentResponse])

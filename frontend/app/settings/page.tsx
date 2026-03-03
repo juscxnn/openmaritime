@@ -572,7 +572,7 @@ export default function SettingsPage() {
                       Save this key now
                     </p>
                     <p className="text-sm text-yellow-700 mt-1">
-                      This is the only time you'll see this key. Copy it and store
+                      This is the only time you&apos;ll see this key. Copy it and store
                       it securely.
                     </p>
                   </div>

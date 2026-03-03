@@ -11,40 +11,25 @@ from uuid import UUID
 from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy import text
 
-from app.api import fixtures, plugins, enrichments, auth, marketplace
-from app.api import voice
-from app.api.metrics import router as metrics_router
-from app.api.audit import router as audit_router
-from app.api.emails import router as emails_router
-from app.middleware.metrics import MetricsMiddleware
+from app.db import async_session_maker, engine
 from app.models import Base
 from app.services.plugin_manager import PluginManager
 from app.prompts.service import prompt_service
-
+from app.api import fixtures, plugins, enrichments, auth, marketplace, voice
+from app.api.emails import router as emails_router
+from app.api.metrics import router as metrics_router
+from app.api.audit import router as audit_router
+from app.middleware.metrics import MetricsMiddleware
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
     "sqlite+aiosqlite:///./openmaritime.db"
 )
 
-# For PostgreSQL, ensure we use asyncpg
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
-
-engine = create_async_engine(
-    DATABASE_URL, 
-    echo=os.getenv("SQL_ECHO", "false").lower() == "true",
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-)
-
-async_session_maker = async_sessionmaker(
-    engine, 
-    class_=AsyncSession, 
-    expire_on_commit=False
-)
 
 plugin_manager = PluginManager()
 
@@ -77,9 +62,15 @@ async def get_db_with_rls(
         tenant_id = getattr(request.state, "tenant_id", None)
         
         if user_id:
-            await db.execute(f"SET app.current_user_id = '{user_id}'")
+            await db.execute(
+                text("SET app.current_user_id = :user_id"),
+                {"user_id": str(user_id)}
+            )
             if tenant_id:
-                await db.execute(f"SET app.current_tenant_id = '{tenant_id}'")
+                await db.execute(
+                    text("SET app.current_tenant_id = :tenant_id"),
+                    {"tenant_id": str(tenant_id)}
+                )
     
     yield db
 
@@ -99,15 +90,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # Migrations should be run separately: alembic upgrade head
         print("PostgreSQL detected. Run 'alembic upgrade head' for migrations.")
     else:
-        # Development: Auto-create tables for SQLite
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+        # Development: Try to create tables, but don't fail if they use PostgreSQL-specific features
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+        except Exception as e:
+            print(f"Warning: Could not create SQLite tables: {e}")
+            print("Using demo mode - database features unavailable")
     
-    await plugin_manager.load_plugins()
+    try:
+        await plugin_manager.load_plugins()
+    except Exception as e:
+        print(f"Warning: Could not load plugins: {e}")
     
-    # Initialize prompt templates
-    async with async_session_maker() as session:
-        await prompt_service.initialize(session)
+    # Skip prompt service initialization if no database
+    if not DATABASE_URL.startswith("sqlite"):
+        try:
+            async with async_session_maker() as session:
+                await prompt_service.initialize(session)
+        except Exception as e:
+            print(f"Warning: Could not initialize prompts: {e}")
     
     yield
     

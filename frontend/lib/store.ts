@@ -2,8 +2,18 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import * as Y from "yjs";
-import { IndexeddbPersistence } from "y-indexeddb";
+
+let Y: typeof import("yjs") | null = null;
+let IndexeddbPersistence: new (name: string, doc: any) => any | null = null;
+
+if (typeof window !== "undefined") {
+  import("yjs").then((y) => {
+    Y = y;
+    import("y-indexeddb").then((idb: any) => {
+      IndexeddbPersistence = idb.default || idb;
+    });
+  });
+}
 
 
 export interface Fixture {
@@ -35,7 +45,7 @@ export interface Fixture {
 }
 
 export interface LaytimeData {
-  nor_ tendered?: string;
+  nor_tendered?: string;
   nor_accepted?: string;
   loading_rate?: number;
   discharge_rate?: number;
@@ -306,23 +316,28 @@ export const useAppStore = create<AppState>()(
 
 
 class CRDTSyncManager {
-  private doc: Y.Doc;
-  private fixturesArray: Y.Map<any>;
-  private regionsArray: Y.Map<any>;
-  private emailsArray: Y.Map<any>;
-  private persistence: IndexeddbPersistence;
+  private doc: import("yjs").Doc | null = null;
+  private fixturesArray: import("yjs").Map<any> | null = null;
+  private regionsArray: import("yjs").Map<any> | null = null;
+  private emailsArray: import("yjs").Map<any> | null = null;
+  private persistence: import("y-indexeddb").IndexeddbPersistence | null = null;
   private isInitialized = false;
   private offlineQueue: Array<{ type: string; data: any }> = [];
 
   constructor() {
-    this.doc = new Y.Doc();
-    this.fixturesArray = this.doc.getMap("fixtures");
-    this.regionsArray = this.doc.getMap("regions");
-    this.emailsArray = this.doc.getMap("emails");
-    this.persistence = new IndexeddbPersistence("openmaritime-crdt", this.doc);
+    if (typeof window === "undefined") return;
+    
+    if (Y && IndexeddbPersistence) {
+      this.doc = new Y.Doc();
+      this.fixturesArray = this.doc.getMap("fixtures");
+      this.regionsArray = this.doc.getMap("regions");
+      this.emailsArray = this.doc.getMap("emails");
+      this.persistence = new IndexeddbPersistence("openmaritime-crdt", this.doc);
+    }
   }
 
   async initialize() {
+    if (typeof window === "undefined" || !Y || !IndexeddbPersistence || !this.doc || !this.persistence) return;
     if (this.isInitialized) return;
 
     this.persistence.on("synced", () => {
@@ -336,6 +351,8 @@ class CRDTSyncManager {
   }
 
   private _syncToZustand() {
+    if (!this.fixturesArray || !this.regionsArray) return;
+    
     const fixtures: Record<string, Fixture> = {};
     this.fixturesArray.forEach((value, key) => {
       fixtures[key] = value;
@@ -350,38 +367,43 @@ class CRDTSyncManager {
   }
 
   addFixture(fixture: Fixture) {
+    if (!this.doc || !this.fixturesArray) return;
     this.doc.transact(() => {
-      this.fixturesArray.set(fixture.id, fixture);
+      this.fixturesArray!.set(fixture.id, fixture);
     });
     this._queueOfflineAction("addFixture", fixture);
   }
 
   updateFixture(id: string, updates: Partial<Fixture>) {
+    if (!this.doc || !this.fixturesArray) return;
     const existing = this.fixturesArray.get(id);
     if (existing) {
       this.doc.transact(() => {
-        this.fixturesArray.set(id, { ...existing, ...updates });
+        this.fixturesArray!.set(id, { ...existing, ...updates });
       });
     }
     this._queueOfflineAction("updateFixture", { id, updates });
   }
 
   deleteFixture(id: string) {
+    if (!this.doc || !this.fixturesArray) return;
     this.doc.transact(() => {
-      this.fixturesArray.delete(id);
+      this.fixturesArray!.delete(id);
     });
     this._queueOfflineAction("deleteFixture", { id });
   }
 
   addRegion(region: Region) {
+    if (!this.doc || !this.regionsArray) return;
     this.doc.transact(() => {
-      this.regionsArray.set(region.id, region);
+      this.regionsArray!.set(region.id, region);
     });
   }
 
   addEmail(email: EmailMessage) {
+    if (!this.doc || !this.emailsArray) return;
     this.doc.transact(() => {
-      this.emailsArray.set(email.id, email);
+      this.emailsArray!.set(email.id, email);
     });
   }
 
@@ -392,6 +414,7 @@ class CRDTSyncManager {
   }
 
   async syncWithServer(apiUrl: string, token: string) {
+    if (!this.doc || !this.fixturesArray || !this.regionsArray) return;
     try {
       const headers = {
         "Content-Type": "application/json",

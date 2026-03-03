@@ -13,7 +13,7 @@ from sqlalchemy import select
 from passlib.context import CryptContext
 
 from app.models import User
-from app.main import async_session_maker
+from app.api.deps import get_db
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
@@ -40,11 +40,6 @@ class UserResponse(BaseModel):
     email: str
     full_name: Optional[str]
     is_active: bool
-
-
-async def get_db():
-    async with async_session_maker() as session:
-        yield session
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -148,3 +143,27 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
         full_name=current_user.full_name,
         is_active=current_user.is_active,
     )
+
+
+@router.post("/demo")
+async def demo_login(db: AsyncSession = Depends(get_db)):
+    demo_email = "demo@openmaritime.io"
+    result = await db.execute(select(User).where(User.email == demo_email))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        hashed_password = get_password_hash("demo123")
+        user = User(
+            email=demo_email,
+            hashed_password=hashed_password,
+            full_name="Demo User",
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+    
+    access_token_expires = timedelta(minutes=30)
+    access_token = create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer", "email": user.email}

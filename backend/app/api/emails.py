@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, or_
 
 from app.models import Fixture, User
-from app.main import async_session_maker
+from app.api.deps import get_db
 from app.api.auth import get_current_user
 from app.services.email_sync import email_sync_service
 
@@ -25,7 +25,7 @@ class EmailMessageResponse(BaseModel):
     id: str
     thread_id: str
     subject: str
-    from: str
+    from_address: str
     to: str
     body: str
     received_at: str
@@ -43,11 +43,6 @@ class EmailExtractResponse(BaseModel):
     success: bool
     fixture_id: Optional[str]
     message: str
-
-
-async def get_db():
-    async with async_session_maker() as session:
-        yield session
 
 
 @router.get("/", response_model=List[EmailMessageResponse])
@@ -97,7 +92,7 @@ async def list_emails(
             id=f.source_email_id or str(f.id),
             thread_id=f.source_email_id or str(f.id),
             subject=f.source_subject or f"Vessel: {f.vessel_name}",
-            from=f.broker or "unknown",
+            from_address=f.broker or "unknown",
             to=current_user.email,
             body=f.raw_data.get("body", "") if f.raw_data else "",
             received_at=f.created_at.isoformat(),
@@ -137,7 +132,7 @@ async def get_email(
         id=fixture.source_email_id or str(fixture.id),
         thread_id=fixture.source_email_id or str(fixture.id),
         subject=fixture.source_subject or f"Vessel: {fixture.vessel_name}",
-        from=fixture.broker or "unknown",
+        from_address=fixture.broker or "unknown",
         to=current_user.email,
         body=fixture.raw_data.get("body", "") if fixture.raw_data else "",
         received_at=fixture.created_at.isoformat(),

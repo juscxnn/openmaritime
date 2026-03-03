@@ -36,10 +36,11 @@ interface Fixture {
 const columnHelper = createColumnHelper<Fixture>();
 
 const columns = [
-  columnHelper.accessor("wake_score", {
+  columnHelper.display({
+    id: "rank",
     header: "Rank",
     cell: (info) => {
-      const score = info.getValue();
+      const score = info.row.original.wake_score;
       if (!score) return "-";
       return (
         <div className="flex items-center gap-2">
@@ -123,10 +124,11 @@ const columns = [
       );
     },
   }),
-  columnHelper.accessor("enrichment_data", {
+  columnHelper.display({
+    id: "position",
     header: "Position / ETA",
     cell: (info) => {
-      const data = info.getValue() as Record<string, unknown> | null;
+      const data = info.row.original.enrichment_data as Record<string, unknown> | null;
       if (!data?.position) {
         return <span className="text-gray-400">-</span>;
       }
@@ -151,10 +153,11 @@ const columns = [
       );
     },
   }),
-  columnHelper.accessor("wake_score", {
+  columnHelper.display({
+    id: "wake_score",
     header: "Wake Score",
     cell: (info) => {
-      const score = info.getValue();
+      const score = info.row.original.wake_score;
       if (!score) return "-";
       return (
         <div className="w-24">
@@ -183,22 +186,23 @@ const columns = [
 ];
 
 export function WakeTable() {
-  const [data, setData] = useState<Fixture[]>([]);
+  const [data, setData] = useState<Fixture[]>(getMockFixtures());
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     async function fetchFixtures() {
       try {
-        const res = await fetch("http://localhost:8000/api/v1/fixtures?limit=50");
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const res = await fetch(`${apiUrl}/api/v1/fixtures`);
         if (res.ok) {
           const json = await res.json();
-          setData(json);
+          if (json.length > 0) {
+            setData(json);
+          }
         }
       } catch (err) {
-        console.error("Failed to fetch fixtures:", err);
-      } finally {
-        setLoading(false);
+        console.log("Using mock fixture data");
       }
     }
     fetchFixtures();
@@ -222,6 +226,11 @@ export function WakeTable() {
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
+      {loading ? (
+        <div className="p-12 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      ) : (
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -264,7 +273,139 @@ export function WakeTable() {
             )}
           </tbody>
         </table>
-      </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function getMockFixtures(): Fixture[] {
+  return [
+    {
+      id: "1",
+      vessel_name: "MT Pacific Grace",
+      imo_number: "9753161",
+      cargo_type: "Naptha",
+      cargo_quantity: 45000,
+      cargo_unit: "MT",
+      laycan_start: "2024-03-15",
+      laycan_end: "2024-03-20",
+      rate: 28.5,
+      rate_currency: "$",
+      rate_unit: "/mt",
+      port_loading: "Singapore",
+      port_discharge: "Chiba",
+      charterer: "Trafigura",
+      broker: "Clarksons",
+      status: "confirmed",
+      wake_score: 88,
+      tce_estimate: 24500,
+      market_diff: 12.5,
+      enrichment_data: {
+        rightship: { safety: 4.2, ghg: "A" },
+        position: { lat: 22.3, lon: 114.1, eta: "3 days" },
+      },
+      created_at: "2024-03-10T10:00:00Z",
+    },
+    {
+      id: "2",
+      vessel_name: "STI Sapphire",
+      imo_number: "9863294",
+      cargo_type: "Gas Oil",
+      cargo_quantity: 80000,
+      cargo_unit: "MT",
+      laycan_start: "2024-03-20",
+      laycan_end: "2024-03-25",
+      rate: 95,
+      rate_currency: "WS",
+      rate_unit: "",
+      port_loading: "Ras Tanura",
+      port_discharge: "Rotterdam",
+      charterer: "Vitol",
+      broker: "Gibson",
+      status: "confirmed",
+      wake_score: 72,
+      tce_estimate: 18200,
+      market_diff: 3.2,
+      enrichment_data: {
+        rightship: { safety: 3.8, ghg: "B" },
+        position: { lat: 35.2, lon: 12.5, eta: "5 days" },
+      },
+      created_at: "2024-03-11T09:00:00Z",
+    },
+    {
+      id: "3",
+      vessel_name: "MT Ocean Pride",
+      imo_number: "9321483",
+      cargo_type: "Crude",
+      cargo_quantity: 280000,
+      cargo_unit: "MT",
+      laycan_start: "2024-03-18",
+      laycan_end: "2024-03-22",
+      rate: 52,
+      rate_currency: "WS",
+      rate_unit: "",
+      port_loading: "Kuwait",
+      port_discharge: "Mumbai",
+      charterer: "Reliance",
+      broker: "Poten",
+      status: "pending",
+      wake_score: 65,
+      tce_estimate: 15800,
+      market_diff: -2.1,
+      enrichment_data: {
+        rightship: { safety: 4.0, ghg: "A" },
+        position: { lat: 25.3, lon: 55.2, eta: "1 day" },
+      },
+      created_at: "2024-03-12T14:00:00Z",
+    },
+    {
+      id: "4",
+      vessel_name: "VLCC Eternal",
+      imo_number: "9456782",
+      cargo_type: "Crude",
+      cargo_quantity: 300000,
+      cargo_unit: "MT",
+      laycan_start: "2024-03-25",
+      laycan_end: "2024-03-30",
+      rate: 48,
+      rate_currency: "WS",
+      rate_unit: "",
+      port_loading: "Basrah",
+      port_discharge: "Singapore",
+      charterer: "BP",
+      broker: "EA Gibson",
+      status: "pending",
+      wake_score: 58,
+      tce_estimate: 14200,
+      market_diff: -5.8,
+      enrichment_data: null,
+      created_at: "2024-03-13T08:00:00Z",
+    },
+    {
+      id: "5",
+      vessel_name: "MR Nordic Wind",
+      imo_number: "9234567",
+      cargo_type: "Clean Petroleum",
+      cargo_quantity: 38000,
+      cargo_unit: "MT",
+      laycan_start: "2024-03-12",
+      laycan_end: "2024-03-15",
+      rate: 145,
+      rate_currency: "WS",
+      rate_unit: "",
+      port_loading: "Amsterdam",
+      port_discharge: "Med",
+      charterer: "Shell",
+      broker: "SSY",
+      status: "confirmed",
+      wake_score: 82,
+      tce_estimate: 22100,
+      market_diff: 8.4,
+      enrichment_data: {
+        rightship: { safety: 4.5, ghg: "A" },
+      },
+      created_at: "2024-03-08T11:00:00Z",
+    },
+  ];
 }

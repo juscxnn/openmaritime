@@ -9,6 +9,7 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
 
 async def set_rls_context(
@@ -28,12 +29,14 @@ async def set_rls_context(
         tenant_id: Optional tenant ID for multi-tenant RLS
     """
     await session.execute(
-        f"SET app.current_user_id = '{user_id}'"
+        text("SET app.current_user_id = :user_id"),
+        {"user_id": str(user_id)}
     )
     
     if tenant_id:
         await session.execute(
-            f"SET app.current_tenant_id = '{tenant_id}'"
+            text("SET app.current_tenant_id = :tenant_id"),
+            {"tenant_id": str(tenant_id)}
         )
 
 
@@ -44,8 +47,8 @@ async def clear_rls_context(session: AsyncSession) -> None:
     Args:
         session: SQLAlchemy async session
     """
-    await session.execute("RESET app.current_user_id")
-    await session.execute("RESET app.current_tenant_id")
+    await session.execute(text("RESET app.current_user_id"))
+    await session.execute(text("RESET app.current_tenant_id"))
 
 
 @asynccontextmanager
@@ -78,12 +81,18 @@ def set_rls_context_sync(connection, user_id: UUID, tenant_id: Optional[UUID] = 
     
     Used in migrations and initialization scripts.
     """
-    connection.exec_driver_sql(f"SET app.current_user_id = '{user_id}'")
+    connection.exec_driver_sql(
+        text("SET app.current_user_id = :user_id"),
+        {"user_id": str(user_id)}
+    )
     if tenant_id:
-        connection.exec_driver_sql(f"SET app.current_tenant_id = '{tenant_id}'")
+        connection.exec_driver_sql(
+            text("SET app.current_tenant_id = :tenant_id"),
+            {"tenant_id": str(tenant_id)}
+        )
 
 
 def clear_rls_context_sync(connection):
     """Clear RLS context for a synchronous connection."""
-    connection.exec_driver_sql("RESET app.current_user_id")
-    connection.exec_driver_sql("RESET app.current_tenant_id")
+    connection.exec_driver_sql(text("RESET app.current_user_id"))
+    connection.exec_driver_sql(text("RESET app.current_tenant_id"))

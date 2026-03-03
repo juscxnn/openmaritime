@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 
 from app.models import Fixture, User
-from app.main import async_session_maker
+from app.api.deps import get_db
 from app.services.wake_ai import WakeAIService
 
 
@@ -69,11 +69,6 @@ class FixtureResponse(BaseModel):
         from_attributes = True
 
 
-async def get_db():
-    async with async_session_maker() as session:
-        yield session
-
-
 @router.get("/", response_model=List[FixtureResponse])
 async def list_fixtures(
     db: AsyncSession = Depends(get_db),
@@ -124,6 +119,108 @@ async def list_fixtures(
             created_at=f.created_at.isoformat(),
         )
         for f in fixtures
+    ]
+
+
+@router.get("/demo", response_model=List[FixtureResponse])
+async def list_demo_fixtures():
+    demo_fixtures = [
+        {
+            "id": "demo-1",
+            "vessel_name": "Eagle",
+            "imo_number": "9321483",
+            "cargo_type": "Crude",
+            "cargo_quantity": 130000,
+            "cargo_unit": "MT",
+            "laycan_start": "2026-03-15T00:00:00",
+            "laycan_end": "2026-03-20T00:00:00",
+            "rate": 45000,
+            "rate_currency": "USD",
+            "rate_unit": "/mt",
+            "port_loading": "Ras Tanura",
+            "port_discharge": "Rotterdam",
+            "charterer": "Trafigura",
+            "broker": "Clarksons",
+            "status": "new",
+            "wake_score": 85.5,
+            "tce_estimate": 32500,
+            "market_diff": 8.5,
+            "enrichment_data": {"vessel_type": "VLCC", "age": 8},
+            "created_at": "2026-03-01T10:00:00",
+        },
+        {
+            "id": "demo-2",
+            "vessel_name": "Pacific Voyager",
+            "imo_number": "9456789",
+            "cargo_type": "Product",
+            "cargo_quantity": 55000,
+            "cargo_unit": "MT",
+            "laycan_start": "2026-03-18T00:00:00",
+            "laycan_end": "2026-03-22T00:00:00",
+            "rate": 32000,
+            "rate_currency": "USD",
+            "rate_unit": "/mt",
+            "port_loading": "Jebel Ali",
+            "port_discharge": "Mumbai",
+            "charterer": "BP",
+            "broker": "Gibson",
+            "status": "validated",
+            "wake_score": 72.3,
+            "tce_estimate": 28000,
+            "market_diff": 2.1,
+            "enrichment_data": {"vessel_type": "Aframax", "age": 5},
+            "created_at": "2026-03-02T14:30:00",
+        },
+        {
+            "id": "demo-3",
+            "vessel_name": "Nordic Spirit",
+            "imo_number": "9234567",
+            "cargo_type": "Clean",
+            "cargo_quantity": 38000,
+            "cargo_unit": "MT",
+            "laycan_start": "2026-03-10T00:00:00",
+            "laycan_end": "2026-03-15T00:00:00",
+            "rate": 28000,
+            "rate_currency": "USD",
+            "rate_unit": "/mt",
+            "port_loading": "Antwerp",
+            "port_discharge": "Singapore",
+            "charterer": "Shell",
+            "broker": "BRS",
+            "status": "enriched",
+            "wake_score": 91.2,
+            "tce_estimate": 35000,
+            "market_diff": 12.3,
+            "enrichment_data": {"vessel_type": "LR2", "age": 3},
+            "created_at": "2026-03-01T08:00:00",
+        },
+    ]
+    
+    return [
+        FixtureResponse(
+            id=f["id"],
+            vessel_name=f["vessel_name"],
+            imo_number=f["imo_number"],
+            cargo_type=f["cargo_type"],
+            cargo_quantity=f["cargo_quantity"],
+            cargo_unit=f["cargo_unit"],
+            laycan_start=f["laycan_start"],
+            laycan_end=f["laycan_end"],
+            rate=f["rate"],
+            rate_currency=f["rate_currency"],
+            rate_unit=f["rate_unit"],
+            port_loading=f["port_loading"],
+            port_discharge=f["port_discharge"],
+            charterer=f["charterer"],
+            broker=f["broker"],
+            status=f["status"],
+            wake_score=f["wake_score"],
+            tce_estimate=f["tce_estimate"],
+            market_diff=f["market_diff"],
+            enrichment_data=f["enrichment_data"],
+            created_at=f["created_at"],
+        )
+        for f in demo_fixtures
     ]
 
 

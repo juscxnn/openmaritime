@@ -26,7 +26,7 @@ interface VoiceRecorderProps {
 export function VoiceRecorder({
   onFixtureExtracted,
   className,
-  apiUrl = "http://localhost:8000",
+  apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001",
 }: VoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);

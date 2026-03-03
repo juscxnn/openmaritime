@@ -41,3 +41,11 @@ export function CardFooter({ children, className }: { children: React.ReactNode;
     </div>
   );
 }
+
+export function CardTitle({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <h3 className={clsx("text-lg font-semibold text-gray-900", className)}>{children}</h3>;
+}
+
+export function CardDescription({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <p className={clsx("text-sm text-gray-500", className)}>{children}</p>;
+}

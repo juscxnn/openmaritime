@@ -10,15 +10,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
-    command: postgres -c shared_preload_libraries=pgvector
+      - "5433:5432"
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "6380:6379"
 
-  # Kafka stub for high-volume fixture ingestion
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     environment:
@@ -37,25 +35,23 @@ services:
     volumes:
       - kafka_data:/var/lib/kafka/data
     ports:
-      - "9092:9092"
+      - "9093:9092"
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://openmaritime:openmaritime@postgres:5432/openmaritime
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://openmaritime:openmaritime@host.docker.internal:5433/openmaritime
+      REDIS_URL: redis://host.docker.internal:6380/0
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       USE_LOCAL_LLAMA: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-    depends_on:
-      - postgres
-      - redis
-      - kafka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./backend:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
@@ -65,14 +61,12 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      DATABASE_URL: postgresql+asyncpg://openmaritime:openmaritime@postgres:5432/openmaritime
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://openmaritime:openmaritime@host.docker.internal:5433/openmaritime
+      REDIS_URL: redis://host.docker.internal:6380/0
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       OLLAMA_BASE_URL: http://host.docker.internal:11434
-    depends_on:
-      - postgres
-      - redis
-      - kafka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./backend:/app
     command: celery -A app.workers.celery worker --loglevel=info --pool=solo
@@ -82,14 +76,13 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
-    depends_on:
-      - backend
+      - "3002:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8001
     volumes:
       - ./frontend:/app
       - /app/node_modules
 
-  # Prometheus for metrics collection
   prometheus:
     image: prom/prometheus:v2.48.0
     container_name: openmaritime-prometheus
@@ -97,34 +90,21 @@ services:
       - "9090:9090"
     volumes:
       - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
-    restart: unless-stopped
 
-  # Grafana for visualization
   grafana:
     image: grafana/grafana:10.2.2
     container_name: openmaritime-grafana
     ports:
       - "3001:3000"
-    volumes:
-      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - grafana_data:/var/lib/grafana
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_INSTALL_PLUGINS=grafana-piechart-panel
-    depends_on:
-      - prometheus
-    restart: unless-stopped
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
 
 volumes:
   postgres_data:
   kafka_data:
-  prometheus_data:
-  grafana_data:
