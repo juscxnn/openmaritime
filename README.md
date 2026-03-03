@@ -22,9 +22,9 @@ OpenMaritime is an **open-source, self-hosted maritime chartering platform** tha
 
 - **Chartering Brokers** – Manage fixtures, track market opportunities, automate ranking
 - **Ship Owners/Operators** – Monitor fixture demand, optimize vessel positioning
-- ** Charterers** – Source vessels, compare rates, track market differentials
-- ** commodity Traders** – Integrate shipping into trade flows, predict costs
-- ** Maritime Startups** – Build on open infrastructure without licensing fees
+- **Charterers** – Source vessels, compare rates, track market differentials
+- **Commodity Traders** – Integrate shipping into trade flows, predict costs
+- **Maritime Startups** – Build on open infrastructure without licensing fees
 
 ### What Can It Do?
 
