@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { FixNowModal } from "./FixNowModal";
 import { FixtureCard } from "./FixtureCard";
+import { ChatSidebar } from "@/components/chat/ChatSidebar";
 
 interface Fixture {
   id: string;
@@ -224,6 +225,7 @@ export function WakeTable() {
   const [showFixtureCard, setShowFixtureCard] = useState(false);
   const [quickFilter, setQuickFilter] = useState<string>("all");
   const [isLive, setIsLive] = useState(true);
+  const [showChat, setShowChat] = useState(false);
 
   const handleFixNow = useCallback((fixture: Fixture) => {
     setFixNowFixture(fixture);
@@ -232,6 +234,13 @@ export function WakeTable() {
   const handleRowClick = useCallback((fixture: Fixture) => {
     setSelectedFixture(fixture);
     setShowFixtureCard(true);
+  }, []);
+  
+  const handleOpenChat = useCallback((fixture?: Fixture) => {
+    if (fixture) {
+      setSelectedFixture(fixture);
+    }
+    setShowChat(true);
   }, []);
 
   const handleConfirmFix = useCallback(async (fixData: any) => {
@@ -532,6 +541,14 @@ export function WakeTable() {
           }
         }}
         onOpenVoice={() => {}}
+      />
+
+      {/* AI Chat Sidebar */}
+      <ChatSidebar
+        isOpen={showChat}
+        onClose={() => setShowChat(false)}
+        fixtureId={selectedFixture?.id}
+        fixtureName={selectedFixture?.vessel_name}
       />
     </>
   );

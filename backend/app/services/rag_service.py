@@ -112,3 +112,66 @@ class RAGService:
 
 
 rag_service = RAGService()
+
+
+async def rag_search(
+    query: str,
+    user_id: str,
+    fixture_id: Optional[str] = None,
+    limit: int = 3,
+) -> List[Dict[str, Any]]:
+    """
+    Perform RAG search over fixtures, emails, and market data.
+    
+    Args:
+        query: Search query
+        user_id: User ID for filtering
+        fixture_id: Optional fixture ID for context
+        limit: Maximum results
+    
+    Returns:
+        List of relevant documents with content and scores
+    """
+    results = []
+    
+    try:
+        # In production, this would query pgvector with the query embedding
+        # For now, return simulated relevant results based on the query
+        
+        query_lower = query.lower()
+        
+        # Check for fixture-related queries
+        if any(kw in query_lower for kw in ["vessel", "fixture", "charter", "rate", "tce"]):
+            results.append({
+                "type": "fixture",
+                "id": fixture_id or "sample-1",
+                "title": "Similar Fixtures",
+                "content": "Historical fixtures show rates for AG->Singapore route averaging WS 120-140 for MR tankers.",
+                "score": 0.92,
+            })
+        
+        # Check for market queries
+        if any(kw in query_lower for kw in ["market", "rate", "tce", " Baltic", "freight"]):
+            results.append({
+                "type": "market_data",
+                "id": "market-1",
+                "title": "Market Rates",
+                "content": "Current VLCC rates: AG->EU WS 48-52, LR2 AG->EU WS 95-105. Market trending up 5%.",
+                "score": 0.88,
+            })
+        
+        # Check for laytime/demurrage
+        if any(kw in query_lower for kw in ["laytime", "demurrage", "despatch", "nor", "sof"]):
+            results.append({
+                "type": "rag",
+                "id": "laytime-1",
+                "title": "Laytime Calculations",
+                "content": "Standard laytime formula: (Quantity / Loading Rate) + (Quantity / Discharging Rate). Demurrage typically $15,000-30,000/day.",
+                "score": 0.85,
+            })
+        
+        return results[:limit]
+        
+    except Exception as e:
+        logger.error(f"RAG search failed: {e}")
+        return []

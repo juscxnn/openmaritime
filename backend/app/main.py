@@ -21,6 +21,7 @@ from app.api import fixtures, plugins, enrichments, auth, marketplace, voice
 from app.api.emails import router as emails_router
 from app.api.metrics import router as metrics_router
 from app.api.audit import router as audit_router
+from app.api.chat import router as chat_router
 from app.middleware.metrics import MetricsMiddleware
 
 DATABASE_URL = os.getenv(
@@ -141,6 +142,7 @@ app.include_router(plugins.router, prefix="/api/v1/plugins", tags=["plugins"])
 app.include_router(enrichments.router, prefix="/api/v1/enrichments", tags=["enrichments"])
 app.include_router(marketplace.router, prefix="/api/v1/marketplace", tags=["marketplace"])
 app.include_router(voice.router, prefix="/api/v1/voice", tags=["voice"])
+app.include_router(chat_router, prefix="/api/v1/chat", tags=["chat"])
 app.include_router(emails_router, tags=["emails"])
 app.include_router(metrics_router, prefix="/api/v1", tags=["observability"])
 app.include_router(audit_router, tags=["audit"])

@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Zap,
   BarChart3,
+  MessageSquare,
 } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/Button";
@@ -30,6 +31,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
 import { Spinner } from "@/components/ui/Spinner";
+import { ChatSidebar } from "@/components/chat/ChatSidebar";
 
 interface Fixture {
   id: string;
@@ -138,6 +140,8 @@ export default function WakePage() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showChat, setShowChat] = useState(false);
+  const [selectedFixtureForChat, setSelectedFixtureForChat] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     async function fetchFixtures() {
@@ -215,6 +219,15 @@ export default function WakePage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <Button 
+              variant="default" 
+              size="sm" 
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              onClick={() => setShowChat(true)}
+            >
+              <Bot className="w-4 h-4" />
+              Ask Wake AI
+            </Button>
             <Button variant="outline" size="sm" className="flex items-center gap-2">
               <RefreshCw className="w-4 h-4" />
               Sync
